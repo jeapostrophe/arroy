@@ -23,6 +23,11 @@
 ;;  players : (listof player)
 ;; export, to specify how many players there are
 
+;; XXX Something even better would be to have players always numbered
+;; (0...n) and then have the initial-state function be:
+;;  initial-state : number -> (U #f state)
+;; where it returns false if the game cannot be played with that many players
+
 ;; XXX Change to
 ;;  available : state player -> (listof moves)
 ;; to handle games where players can act "simultaneously" before the game necessarily advances
