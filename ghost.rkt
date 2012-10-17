@@ -1,12 +1,11 @@
 #lang racket/base
-
 (require "arroy.rkt"
+         "lts.rkt"
+         racket/file
          racket/list
          racket/match
          racket/set
-         racket/unit
-         racket/function
-         racket/file)
+         racket/unit)
 
 (define-unit ghost@
   (import)
