@@ -224,9 +224,5 @@
        (define i (read))
        (loop (cdr (list-ref a i)))])))
 
-(module+ main
-  ;; Play Tic-Tac-Toe
-  ;;(invoke-unit/infer (link ttt@ arroy@))
-  ;; Play Guess
-  (invoke-unit/infer (link guess@ arroy@))
-  )
+(provide arroy@
+         lts^)
