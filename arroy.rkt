@@ -5,6 +5,39 @@
          racket/match
          racket/unit)
 
+;; XXX In the Web version, have a login and then list "games in play"
+;; and you can join or start a new one. When you start one, give it a
+;; number/code and the number of players and a user-defined, it starts
+;; when all the players join.
+;; 
+;; The server serializes the state (add the fact that the state must
+;; be serializable to the contract on lts^) to disk after every
+;; transition. When users go to the site, it informs them of the
+;; result of render on the current state and their available moves.
+;;
+;; When the computer user is supported, the server should probably
+;; start a thread for every active game that communicates via channels
+;; with the Web threads that represent the players and the server
+;; thread could run the computer actions. This would also make it easy
+;; to do COMET-style pushing to the clients of state changes.
+;;
+;; It would be neat to have the state for a game and its sequence of
+;; moves recorded on the server, so that other people could view old
+;; games. (Given that everything would be serializable, it would be
+;; easy to do.)
+;;
+;; I think this setup will complicate using a unit because the server
+;; would have to have some data-structure that stores all the
+;; available game types, but if it stored the units, then they'd be
+;; invoked many times without purpose. I think a better way would be
+;; to swap out the unit for a single structure that encapsulated all
+;; the pieces (basically an object, although I find the Racket object
+;; system kind-of annoying). This would also make the contracts
+;; enforceable [technically Racket signatures can have contracts, but
+;; they can't refer to each other, so you couldn't have the signature
+;; contain a state? and move? predicate.] If we used a struct, then it
+;; would also be easy to have a "name" associated with each game type.
+
 (define (sum l)
   (foldl + 0 l))
 (define (average l)
@@ -26,6 +59,18 @@
     (define initial-state
       (make-initial-state players))
 
+    ;; XXX Memoization of these two functions would be good for
+    ;; performance. Also, the memoization on the second one should
+    ;; have the interesting rule that
+    ;;
+    ;; (gscore s p i)
+    ;;
+    ;; can be used for
+    ;;
+    ;; (gscore s p j)
+    ;;
+    ;; provided j <= i, because you can always use more precision than
+    ;; you asked for, but you don't want less.
     (define (available* s)
       (apply append
              (for/list ([p (in-range players)])
