@@ -42,8 +42,7 @@
                        (for/list ([c (in-list (string->list "ABCDEFGHIJKLMNOPQRSTUVWXYZ"))])
                          (add c))))
   
-  (define (initial-state n)
-    (and (> n 1) (middle empty 0 n)))
+  (define initial-state (middle empty 0 2))
   
   (define next
     (match-lambda*
@@ -61,15 +60,16 @@
       ;; If challenged, add a letter
       [(list (challenged letters er ee) (add c))
        (defending (cons c letters) er ee)]
-      ;; challenged person forfeits
+      ;; challenged [person] forfeits
       [(list (challenged letters er ee) (forfeit))
        (end er)]
-      ;; defending person adds letter
+      ;; defender adds letter
       [(list (defending letters er ee) (add c))
        (defending (cons c letters) er ee)]
-      ;; 
+      ;; defender forfeits
       [(list (defending letters er ee) (forfeit))
        (end er)]
+      ;; defender finishes word
       [(list (defending letters er ee) (declare))
        (if (forms-word? letters)
            (end ee)
