@@ -36,9 +36,8 @@
        (printf "Available moves:\n")
        (for ([m*ns (in-list a)]
              [i (in-naturals)])
-         (printf "\t~a. ~a (~a)\n"
-                 i (car m*ns)
-                 (can-win? (player s) (cdr m*ns))))
+         (printf "\t~a. ~a\n"
+                 i (car m*ns)))
        (printf "Selection: ") (flush-output)
        (define i (read))
        (loop (cdr (list-ref a i)))])))
