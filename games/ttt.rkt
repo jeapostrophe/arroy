@@ -49,8 +49,7 @@
 
 (define (make-initial-state players)
   (and (= 2 players)
-       (middle (random players) (hash))
-       #f))
+       (middle (random players) (hash))))
 
 ;; There's only one kind of a move, placing your mark.
 (struct move ())
