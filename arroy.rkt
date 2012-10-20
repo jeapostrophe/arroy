@@ -130,136 +130,137 @@
         (loop ns)]))))
 
 (define-runtime-path static-dir "static")
-(define (go port games)
-  (define-values
-    (main-dispatch main-url)
-    (dispatch-rules
-     [()
-      page/main]
-     [("")
-      page/main]
-     [("game" (integer-arg))
-      page/game]
-     [("game" (integer-arg) (integer-arg))
-      page/game/player]
-     [("game" "new")
-      page/game/new]))
 
-  (define (template title . body)
-    (response/xexpr
-     `(html
-       (head
-        (title ,title))
-       (body
-        (h1 ,title)
-        ,@body))))
+(define-values
+  (main-dispatch main-url)
+  (dispatch-rules
+   [()
+    page/main]
+   [("")
+    page/main]
+   [("game" (integer-arg))
+    page/game]
+   [("game" (integer-arg) (integer-arg))
+    page/game/player]
+   [("game" "new")
+    page/game/new]))
 
-  ;; XXX This is really gross
-  (struct game-in-progress (game players state))
-  (define in-progress
-    (make-hasheq))
+(define (template title . body)
+  (response/xexpr
+   `(html
+     (head
+      (title ,title))
+     (body
+      (h1 ,title)
+      ,@body))))
 
-  ;; XXX This should have a notion of user and what their games are vs
-  ;; all the games.
-  (define (page/main req)
-    (template
-     "Main"
-     `(div ([class "games"])
-           (ul
-            ;; XXX This should filter out games that are done
-            ,@(for/list ([(g s) (in-hash in-progress)])
-                `(li (a ([href ,(main-url page/game g)])
-                        ,(format "~a" g))))))
-     `(a ([href ,(main-url page/game/new)])
-         "New Game")))
+;; XXX This is really gross
+(struct game-in-progress (game players state))
+(define in-progress
+  (make-hasheq))
 
-  ;; XXX It should just know what a user's role is in each of their
-  ;; games
-  (define (page/game req game-id)
-    (match-define
-     (game-in-progress game players state)
-     (hash-ref in-progress game-id))
-    (template
-     (format "Game > ~a" game-id)
-     "Which player are you?"
-     `(ul
-       ,@(for/list ([p (in-range players)])
-           `(li (a ([href ,(main-url page/game/player game-id p)])
-                   ,(format "Player ~a" p)))))))
+;; XXX This should have a notion of user and what their games are vs
+;; all the games.
+(define (page/main req)
+  (template
+   "Main"
+   `(div ([class "games"])
+         (ul
+          ;; XXX This should filter out games that are done
+          ,@(for/list ([(g s) (in-hash in-progress)])
+              `(li (a ([href ,(main-url page/game g)])
+                      ,(format "~a" g))))))
+   `(a ([href ,(main-url page/game/new)])
+       "New Game")))
 
-  (define (page/game/player req game-id player-id)
-    (match-define
-     (game-in-progress game players state)
-     (hash-ref in-progress game-id))
-    (match-define
-     (lts _ _ _ available next score render)
-     game)
-    (define chosen-m
-      (send/suspend/dispatch
-       (λ (embed/url)
-         (template
-          (format "Game > ~a > ~a" game-id player-id)
-          `(h1 "Current state:")
-          (render state player-id)
-          `(h1 "Available moves:")
-          `(ul
-            ,@(for/list ([m (in-list (available state player-id))])
-                `(li
-                  (a ([href ,(embed/url (λ (req) m))])
-                     ,(render m player-id)))))
-          `(h1 "Results")
-          `(ul
-            ,@(for/list ([p (in-range players)])
-                `(li ,(format "~a. ~a"
-                              p (score state p)))))))))
-    (define next-state
-      (next state player-id chosen-m))
-    ;; XXX There is a race condition here, if the state has changed
-    ;; (because of another user) since this page was displayed to the
-    ;; user
-    (when next-state
-      (hash-set! in-progress
-                 game-id
-                 (game-in-progress
-                  game
-                  players
-                  next-state)))
-    (redirect-to
-     (main-url page/game/player game-id player-id)))
+;; XXX It should just know what a user's role is in each of their
+;; games
+(define (page/game req game-id)
+  (match-define
+   (game-in-progress game players state)
+   (hash-ref in-progress game-id))
+  (template
+   (format "Game > ~a" game-id)
+   "Which player are you?"
+   `(ul
+     ,@(for/list ([p (in-range players)])
+         `(li (a ([href ,(main-url page/game/player game-id p)])
+                 ,(format "Player ~a" p)))))))
 
-  (define (page/game/new req)
-    (define which-game
-      (send/suspend/dispatch
-       (λ (embed/url)
-         (template
-          "Game > New"
-          "What kind of game?"
-          `(ul
-            ,@(for/list ([g (in-list games)])
-                `(li (p (a ([href ,(embed/url
-                                    (λ (req) g))])
-                           ,(lts-name g)))
-                     (p ,(lts-description g)))))))))
-    ;; XXX Ask the user about this
-    (define how-many-players 2)
-    (define initial-state
-      ((lts-make-initial-state which-game)
-       how-many-players))
-    (define this-game
-      (game-in-progress
-       which-game
-       how-many-players
-       initial-state))
-
-    ;; XXX This is real gross
-    (define game-id
-      (hash-count in-progress))
+(define (page/game/player req game-id player-id)
+  (match-define
+   (game-in-progress game players state)
+   (hash-ref in-progress game-id))
+  (match-define
+   (lts _ _ _ available next score render)
+   game)
+  (define chosen-m
+    (send/suspend/dispatch
+     (λ (embed/url)
+       (template
+        (format "Game > ~a > ~a" game-id player-id)
+        `(h1 "Current state:")
+        (render state player-id)
+        `(h1 "Available moves:")
+        `(ul
+          ,@(for/list ([m (in-list (available state player-id))])
+              `(li
+                (a ([href ,(embed/url (λ (req) m))])
+                   ,(render m player-id)))))
+        `(h1 "Results")
+        `(ul
+          ,@(for/list ([p (in-range players)])
+              `(li ,(format "~a. ~a"
+                            p (score state p)))))))))
+  (define next-state
+    (next state player-id chosen-m))
+  ;; XXX There is a race condition here, if the state has changed
+  ;; (because of another user) since this page was displayed to the
+  ;; user
+  (when next-state
     (hash-set! in-progress
                game-id
-               this-game)
-    (redirect-to
-     (main-url page/game game-id)))
+               (game-in-progress
+                game
+                players
+                next-state)))
+  (redirect-to
+   (main-url page/game/player game-id player-id)))
 
+(define (page/game/new req)
+  (define which-game
+    (send/suspend/dispatch
+     (λ (embed/url)
+       (template
+        "Game > New"
+        "What kind of game?"
+        `(ul
+          ,@(for/list ([g (in-list games)])
+              `(li (p (a ([href ,(embed/url
+                                  (λ (req) g))])
+                         ,(lts-name g)))
+                   (p ,(lts-description g)))))))))
+  ;; XXX Ask the user about this
+  (define how-many-players 2)
+  (define initial-state
+    ((lts-make-initial-state which-game)
+     how-many-players))
+  (define this-game
+    (game-in-progress
+     which-game
+     how-many-players
+     initial-state))
+
+  ;; XXX This is real gross
+  (define game-id
+    (hash-count in-progress))
+  (hash-set! in-progress
+             game-id
+             this-game)
+  (redirect-to
+   (main-url page/game game-id)))
+
+(define (go port)
   (serve/servlet
    main-dispatch
    #:extra-files-paths (list static-dir)
@@ -268,31 +269,31 @@
    #:listen-ip #f
    #:port port))
 
+;; XXX I think I've used this pattern five times. I should make it a
+;; library in Racket.
+(require (for-syntax racket/base))
+(begin-for-syntax
+  (require racket/runtime-path)
+  (define-runtime-path games-dir "games"))
+(define-syntax (define-games stx)
+  (syntax-case stx ()
+    [(_ games-id)
+     (with-syntax
+         ([(game ...)
+           (for/list ([game-path (in-list (directory-list games-dir))]
+                      #:when (file-exists?
+                              (build-path games-dir game-path)))
+             (quasisyntax/loc stx
+               (let ()
+                 (local-require
+                  (file #,(path->string
+                           (build-path games-dir game-path))))
+                 game)))])
+       (syntax/loc stx
+         (define games-id
+           (list game ...))))]))
+
+(define-games games)
+
 (module+ main
-  ;; XXX I think I've used this pattern five times. I should make it a
-  ;; library in Racket.
-  (require (for-syntax racket/base))
-  (begin-for-syntax
-    (require racket/runtime-path)
-    (define-runtime-path games-dir "games"))
-  (define-syntax (define-games stx)
-    (syntax-case stx ()
-      [(_ games-id)
-       (with-syntax
-           ([(game ...)
-             (for/list ([game-path (in-list (directory-list games-dir))]
-                        #:when (file-exists?
-                                (build-path games-dir game-path)))
-               (quasisyntax/loc stx
-                 (let ()
-                   (local-require
-                    (file #,(path->string
-                             (build-path games-dir game-path))))
-                   game)))])
-         (syntax/loc stx
-           (define games-id
-             (list game ...))))]))
-
-  (define-games games)
-
-  (go 8080 games))
+  (go 8080))
