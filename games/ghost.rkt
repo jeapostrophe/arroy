@@ -144,4 +144,4 @@
 
 (define-lts
   "GHOST"
-  "A game where players alternate adding letters to a word, trying to be the last to complete a word. For any number of players.")
+  "A game where players alternate adding letters to a word, trying to not be the last to complete a word. For any number of players.")
