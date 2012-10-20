@@ -154,21 +154,27 @@
         (h1 ,title)
         ,@body))))
 
+  ;; XXX This is really gross
   (struct game-in-progress (game players state))
   (define in-progress
     (make-hasheq))
 
+  ;; XXX This should have a notion of user and what their games are vs
+  ;; all the games.
   (define (page/main req)
     (template
      "Main"
      `(div ([class "games"])
            (ul
+            ;; XXX This should filter out games that are done
             ,@(for/list ([(g s) (in-hash in-progress)])
                 `(li (a ([href ,(main-url page/game g)])
                         ,(format "~a" g))))))
      `(a ([href ,(main-url page/game/new)])
          "New Game")))
 
+  ;; XXX It should just know what a user's role is in each of their
+  ;; games
   (define (page/game req game-id)
     (match-define
      (game-in-progress game players state)
@@ -193,7 +199,6 @@
        (λ (embed/url)
          (template
           (format "Game > ~a > ~a" game-id player-id)
-
           `(h1 "Current state:")
           (render state player-id)
           `(h1 "Available moves:")
@@ -209,6 +214,9 @@
                               p (score state p)))))))))
     (define next-state
       (next state player-id chosen-m))
+    ;; XXX There is a race condition here, if the state has changed
+    ;; (because of another user) since this page was displayed to the
+    ;; user
     (when next-state
       (hash-set! in-progress
                  game-id
@@ -243,6 +251,7 @@
        how-many-players
        initial-state))
 
+    ;; XXX This is real gross
     (define game-id
       (hash-count in-progress))
     (hash-set! in-progress
@@ -260,6 +269,8 @@
    #:port port))
 
 (module+ main
+  ;; XXX I think I've used this pattern five times. I should make it a
+  ;; library in Racket.
   (require (for-syntax racket/base))
   (begin-for-syntax
     (require racket/runtime-path)
