@@ -123,7 +123,7 @@
                           (real->decimal-string
                            ;; XXX Change this to a 9 for TTT
                            ;; XXX It can be 3 for Guess
-                           (gscore (next s p m) p 4))))
+                           (gscore (next s p m) p 0))))
                 (let read-loop ([i +inf.0])
                   (cond
                     [(and (exact-nonnegative-integer? i)
