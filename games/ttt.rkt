@@ -1,12 +1,11 @@
 #lang racket/base
-(require "arroy.rkt"
-         "lts.rkt"
+(require "../lts.rkt"
          racket/match
          racket/port
          racket/unit)
 
 ;; Tic-Tac-Toe is an example of an LTS
-(define-unit ttt@
+(define-unit game@
   (import)
   (export lts^)
 
@@ -112,6 +111,4 @@
       [_
        #f])))
 
-(module+ main
-  (define-values/invoke-unit/infer (export arroy^) (link ttt@ arroy@))
-  (play 2))
+(provide game@)

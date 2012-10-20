@@ -9,7 +9,7 @@
 ;; and you can join or start a new one. When you start one, give it a
 ;; number/code and the number of players and a user-defined, it starts
 ;; when all the players join.
-;; 
+;;
 ;; The server serializes the state (add the fact that the state must
 ;; be serializable to the contract on lts^) to disk after every
 ;; transition. When users go to the site, it informs them of the
@@ -141,5 +141,37 @@
          [ns
           (loop ns)])))))
 
-(provide arroy@
-         arroy^)
+(module+ main
+  (require (for-syntax racket/base))
+  (begin-for-syntax
+    (require racket/runtime-path)
+    (define-runtime-path games-dir "games"))
+  (define-syntax (define-games stx)
+    (syntax-case stx ()
+      [(_ games-id)
+       (with-syntax
+           ([(game@ ...)
+             (for/list ([game-path (in-list (directory-list games-dir))]
+                        #:when (file-exists? 
+                                (build-path games-dir game-path)))
+               (quasisyntax/loc stx
+                 (let ()
+                   (local-require 
+                    (file #,(path->string
+                             (build-path games-dir game-path))))
+                   game@)))])
+         (syntax/loc stx
+           (define games-id
+             (list game@ ...))))]))
+
+  (define-games games)
+
+  (for ([the-game@ (in-list games)])
+    (define-unit-binding game@
+      the-game@
+      (import)
+      (export lts^))
+    (define-values/invoke-unit/infer
+      (export arroy^)
+      (link game@ arroy@))
+    (play 2)))

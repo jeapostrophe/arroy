@@ -1,11 +1,10 @@
 #lang racket/base
-(require "arroy.rkt"
-         "lts.rkt"
+(require "../lts.rkt"
          racket/match
          racket/unit)
 
 ;; Guess a number between 0 and 9
-(define-unit guess@
+(define-unit game@
   (import)
   (export lts^)
 
@@ -64,8 +63,4 @@
      [_
       #f])))
 
-(module+ main
-  (define-values/invoke-unit/infer
-    (export arroy^)
-    (link guess@ arroy@))
-  (play 2))
+(provide game@)
