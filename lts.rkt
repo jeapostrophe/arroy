@@ -63,13 +63,11 @@
 
 (provide
  define-lts
- lts
+ (struct-out lts)
  (contract-out
   [display-rep?
    (-> any/c boolean?)]
   [player?
-   (-> any/c boolean?)]
-  [lts?
    (-> any/c boolean?)]
   [make-lts
    (->d

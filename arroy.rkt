@@ -2,7 +2,11 @@
 (require "lts.rkt"
          racket/function
          racket/list
-         racket/match)
+         racket/match
+         racket/runtime-path
+         web-server/servlet-env
+         web-server/dispatch
+         web-server/servlet)
 
 ;; XXX In the Web version, have a login and then list "games in play"
 ;; and you can join or start a new one. When you start one, give it a
@@ -24,18 +28,6 @@
 ;; moves recorded on the server, so that other people could view old
 ;; games. (Given that everything would be serializable, it would be
 ;; easy to do.)
-;;
-;; I think this setup will complicate using a unit because the server
-;; would have to have some data-structure that stores all the
-;; available game types, but if it stored the units, then they'd be
-;; invoked many times without purpose. I think a better way would be
-;; to swap out the unit for a single structure that encapsulated all
-;; the pieces (basically an object, although I find the Racket object
-;; system kind-of annoying). This would also make the contracts
-;; enforceable [technically Racket signatures can have contracts, but
-;; they can't refer to each other, so you couldn't have the signature
-;; contain a state? and move? predicate.] If we used a struct, then it
-;; would also be easy to have a "name" associated with each game type.
 
 (define (sum l)
   (foldl + 0 l))
@@ -137,6 +129,136 @@
        [ns
         (loop ns)]))))
 
+(define-runtime-path static-dir "static")
+(define (go port games)
+  (define-values
+    (main-dispatch main-url)
+    (dispatch-rules
+     [()
+      page/main]
+     [("")
+      page/main]
+     [("game" (integer-arg))
+      page/game]
+     [("game" (integer-arg) (integer-arg))
+      page/game/player]
+     [("game" "new")
+      page/game/new]))
+
+  (define (template title . body)
+    (response/xexpr
+     `(html
+       (head
+        (title ,title))
+       (body
+        (h1 ,title)
+        ,@body))))
+
+  (struct game-in-progress (game players state))
+  (define in-progress
+    (make-hasheq))
+
+  (define (page/main req)
+    (template
+     "Main"
+     `(div ([class "games"])
+           (ul
+            ,@(for/list ([(g s) (in-hash in-progress)])
+                `(li (a ([href ,(main-url page/game g)])
+                        ,(format "~a" g))))))
+     `(a ([href ,(main-url page/game/new)])
+         "New Game")))
+
+  (define (page/game req game-id)
+    (match-define
+     (game-in-progress game players state)
+     (hash-ref in-progress game-id))
+    (template
+     (format "Game > ~a" game-id)
+     "Which player are you?"
+     `(ul
+       ,@(for/list ([p (in-range players)])
+           `(li (a ([href ,(main-url page/game/player game-id p)])
+                   ,(format "Player ~a" p)))))))
+
+  (define (page/game/player req game-id player-id)
+    (match-define
+     (game-in-progress game players state)
+     (hash-ref in-progress game-id))
+    (match-define
+     (lts _ _ _ available next score render)
+     game)
+    (define chosen-m
+      (send/suspend/dispatch
+       (λ (embed/url)
+         (template
+          (format "Game > ~a > ~a" game-id player-id)
+
+          `(h1 "Current state:")
+          (render state player-id)
+          `(h1 "Available moves:")
+          `(ul
+            ,@(for/list ([m (in-list (available state player-id))])
+                `(li
+                  (a ([href ,(embed/url (λ (req) m))])
+                     ,(render m player-id)))))
+          `(h1 "Results")
+          `(ul
+            ,@(for/list ([p (in-range players)])
+                `(li ,(format "~a. ~a"
+                              p (score state p)))))))))
+    (define next-state
+      (next state player-id chosen-m))
+    (when next-state
+      (hash-set! in-progress
+                 game-id
+                 (game-in-progress
+                  game
+                  players
+                  next-state)))
+    (redirect-to
+     (main-url page/game/player game-id player-id)))
+
+  (define (page/game/new req)
+    (define which-game
+      (send/suspend/dispatch
+       (λ (embed/url)
+         (template
+          "Game > New"
+          "What kind of game?"
+          `(ul
+            ,@(for/list ([g (in-list games)])
+                `(li (p (a ([href ,(embed/url
+                                    (λ (req) g))])
+                           ,(lts-name g)))
+                     (p ,(lts-description g)))))))))
+    ;; XXX Ask the user about this
+    (define how-many-players 2)
+    (define initial-state
+      ((lts-make-initial-state which-game)
+       how-many-players))
+    (define this-game
+      (game-in-progress
+       which-game
+       how-many-players
+       initial-state))
+
+    (define game-id
+      (hash-count in-progress))
+    (hash-set! in-progress
+               game-id
+               this-game)
+    (redirect-to
+     (main-url page/game game-id)))
+
+  (serve/servlet
+   main-dispatch
+   #:extra-files-paths (list static-dir)
+   #:command-line? #t
+   #:servlet-regexp #rx""
+   #:listen-ip #f
+   #:port port))
+
 (module+ main
   (require (for-syntax racket/base))
   (begin-for-syntax
@@ -162,5 +284,4 @@
 
   (define-games games)
 
-  (for ([the-game (in-list games)])
-    (play the-game 2)))
+  (go 8080 games))
