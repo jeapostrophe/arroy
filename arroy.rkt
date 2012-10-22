@@ -200,7 +200,7 @@
        (template
         (format "Game > ~a > ~a" game-id player-id)
         `(h1 "Current state:")
-        (render state player-id)
+        `(pre ,(render state player-id))
         `(h1 "Available moves:")
         `(ul
           ,@(for/list ([m (in-list (available state player-id))])
@@ -217,6 +217,8 @@
   ;; XXX There is a race condition here, if the state has changed
   ;; (because of another user) since this page was displayed to the
   ;; user
+  ;; (unless (equal? state (get-state-again))
+  ;;   ... error ...)
   (when next-state
     (hash-set! in-progress
                game-id
