@@ -1,5 +1,5 @@
 #lang racket/base
-(require "../lts.rkt"
+(require arroy/lts
          racket/match
          racket/unit)
 
