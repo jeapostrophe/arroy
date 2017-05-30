@@ -5,6 +5,9 @@
          racket/match
          racket/set)
 
+(define dict-ps
+  (list "/usr/share/dict/words"
+        "/usr/share/dict/cracklib-small"))
 (define dict
   (for/fold ([dict (set)])
       ([word (in-list
@@ -12,7 +15,11 @@
                (λ (s) (not
                        (or (regexp-match "'" s) ; no apostrophes
                            (regexp-match #rx"[A-Z]" s)))) ; no proper nouns
-               (file->lines #:mode 'text "/usr/share/dict/words")))])
+               (or
+                (for/or ([dict-p (in-list dict-ps)])
+                  (and (file-exists? dict-p)
+                       (file->lines #:mode 'text dict-p)))
+                (list "Racket" "is" "lots" "of" "fun"))))])
     (set-add dict word)))
 
 (define (letters->string letters)
